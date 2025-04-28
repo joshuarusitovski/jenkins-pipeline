@@ -2,7 +2,7 @@ pipeline {
     agent any 
     environment {
         DIRECTORY_PATH="C:/Documents/SIT223/Jenkins"
-        TESTING_ENVRIO="TEST1"
+        TESTING_ENVIRO="TEST1"
         PROD_ENVIRO="PROD"
     }
 
