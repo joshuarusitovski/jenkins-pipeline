@@ -9,21 +9,21 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                echo 'Building the application...'
+                echo '🔨 Building the application...'
                 sh "${MAVEN_HOME}/bin/mvn clean package -DskipTests"
             }
         }
 
         stage('Unit and Integration Tests') {
             steps {
-                echo 'Running unit and integration tests...'
+                echo '🧪 Running unit and integration tests...'
                 sh "${MAVEN_HOME}/bin/mvn test integration-test"
             }
         }
 
         stage('Code Analysis') {
             steps {
-                echo 'Running SonarQube code analysis...'
+                echo '📊 Running SonarQube code analysis...'
                 withSonarQubeEnv("${SONARQUBE}") {
                     sh "${MAVEN_HOME}/bin/mvn sonar:sonar"
                 }
@@ -32,14 +32,14 @@ pipeline {
 
         stage('Security Scan') {
             steps {
-                echo 'Running security scan with OWASP Dependency-Check...'
-                sh 'dependency-check.sh --project my-app --scan . --format ALL'
+                echo '🔐 Running OWASP Dependency-Check...'
+                sh 'dependency-check.sh --project my-app --scan . --format HTML'
             }
         }
 
         stage('Deploy to Staging') {
             steps {
-                echo 'Deploying to staging server...'
+                echo '🚀 Deploying to staging server...'
                 sshagent (credentials: ['staging-server-creds']) {
                     sh """
                     scp target/*.jar $STAGING_SERVER:/home/ec2-user/app/
@@ -51,14 +51,14 @@ pipeline {
 
         stage('Integration Tests on Staging') {
             steps {
-                echo 'Running integration tests on staging...'
+                echo '🧪 Running integration tests on staging environment...'
                 sh 'newman run postman_collection.json'
             }
         }
 
         stage('Deploy to Production') {
             steps {
-                echo 'Deploying to production server...'
+                echo '🚀 Deploying to production server...'
                 sshagent (credentials: ['prod-server-creds']) {
                     sh """
                     scp target/*.jar $PROD_SERVER:/home/ec2-user/app/
@@ -68,9 +68,10 @@ pipeline {
             }
         }
     }
+
     post {
         always {
-            echo 'Pipeline completed.'
+            echo '✅ Pipeline completed.'
         }
     }
 }
