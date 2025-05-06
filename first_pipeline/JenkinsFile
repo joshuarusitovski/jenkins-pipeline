@@ -1,45 +1,77 @@
 pipeline {
-    agent any 
+    agent any
     environment {
-        DIRECTORY_PATH="C:/Documents/SIT223/Jenkins"
-        TESTING_ENVRIO="TEST1"
-        PROD_ENVIRO="PROD"
+        MAVEN_HOME = tool 'Maven 3.8.5'
+        SONARQUBE = 'SonarQube'
+        STAGING_SERVER = 'ec2-user@staging-ip'
+        PROD_SERVER = 'ec2-user@production-ip'
+    }
+    stages {
+        stage('Build') {
+            steps {
+                echo '🔨 Building the application...'
+                sh 'mvn clean package -DskipTests'
+            }
+        }
+
+        stage('Unit and Integration Tests') {
+            steps {
+                echo '🧪 Running unit and integration tests...'
+                sh "${MAVEN_HOME}/bin/mvn test integration-test"
+            }
+        }
+
+        stage('Code Analysis') {
+            steps {
+                echo '📊 Running SonarQube code analysis...'
+                withSonarQubeEnv("${SONARQUBE}") {
+                    sh "${MAVEN_HOME}/bin/mvn sonar:sonar"
+                }
+            }
+        }
+
+        stage('Security Scan') {
+            steps {
+                echo '🔐 Running OWASP Dependency-Check...'
+                sh 'dependency-check.sh --project my-app --scan . --format HTML'
+            }
+        }
+
+        stage('Deploy to Staging') {
+            steps {
+                echo '🚀 Deploying to staging server...'
+                sshagent (credentials: ['staging-server-creds']) {
+                    sh """
+                    scp target/*.jar $STAGING_SERVER:/home/ec2-user/app/
+                    ssh $STAGING_SERVER 'bash /home/ec2-user/app/restart.sh'
+                    """
+                }
+            }
+        }
+
+        stage('Integration Tests on Staging') {
+            steps {
+                echo '🧪 Running integration tests on staging environment...'
+                sh 'newman run postman_collection.json'
+            }
+        }
+
+        stage('Deploy to Production') {
+            steps {
+                echo '🚀 Deploying to production server...'
+                sshagent (credentials: ['prod-server-creds']) {
+                    sh """
+                    scp target/*.jar $PROD_SERVER:/home/ec2-user/app/
+                    ssh $PROD_SERVER 'bash /home/ec2-user/app/restart.sh'
+                    """
+                }
+            }
+        }
     }
 
-    stages{
-        stage('build'){
-            steps{
-                echo "fetch source code from $DIRECTORY_PATH"
-                echo "compile the code and generate any necessary artefacts"
-            }
+    post {
+        always {
+            echo '✅ Pipeline completed.'
         }
-        stage('test'){
-            steps{
-                echo "unit tests"
-                echo "integration tests"
-
-            }
-        }
-        stage('code quality check'){
-            steps{
-                echo "check the quality of the code"
-            }
-        }
-        stage('deploy'){
-            steps{
-                echo "deploy the application to $TESTING_ENVIRO"
-            }
-        }
-        stage('Approval'){
-            steps{
-                sleep 10
-            }
-        }
-        stage('Deploy to Production'){
-            steps{
-                echo "deployment of code to $PROD_ENVIRO"
-            }
-        }
-
     }
 }
